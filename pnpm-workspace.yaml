@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - argon2
+  - esbuild
+  - sharp
+  - unrs-resolver
+
+strictPeerDependencies: true
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build

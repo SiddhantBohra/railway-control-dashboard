@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/.env
+**/.env.*
+.git
+.playwright-mcp
+playwright-report
+test-results
+**/coverage
+**/*.tsbuildinfo
+.local

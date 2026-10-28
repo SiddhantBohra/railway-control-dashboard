@@ -1,0 +1,62 @@
+{
+  "name": "@control/api",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "node --env-file=.env --watch --require ts-node/register src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/apps/api/src/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+    "test:integration": "node --experimental-vm-modules --env-file=.env node_modules/jest/bin/jest.js --config jest.integration.config.cjs --runInBand",
+    "db:migrate": "node --env-file=.env --require ts-node/register src/database/migrate.ts",
+    "db:seed": "node --env-file=.env --require ts-node/register src/database/seed.ts",
+    "password:hash": "node --require ts-node/register src/modules/auth/hash-password.ts",
+    "test:railway": "node --env-file=.env --require ts-node/register test/railway.smoke.ts",
+    "review:close": "node --env-file=.env --require ts-node/register src/operator/close-review.ts"
+  },
+  "dependencies": {
+    "@control/contracts": "workspace:*",
+    "@nestjs/common": "11.2.8",
+    "@nestjs/core": "11.2.8",
+    "@nestjs/platform-express": "11.2.8",
+    "@nestjs/sequelize": "12.0.0",
+    "@nestjs/swagger": "11.4.7",
+    "@nestjs/passport": "12.0.0",
+    "argon2": "0.45.1",
+    "connect-pg-simple": "10.0.0",
+    "express-session": "1.19.0",
+    "helmet": "8.3.0",
+    "nestjs-zod": "5.5.0",
+    "passport": "0.7.0",
+    "passport-local": "1.0.0",
+    "pg": "8.23.1",
+    "pg-hstore": "2.3.4",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "sequelize": "6.37.8",
+    "sequelize-typescript": "2.1.6",
+    "umzug": "3.8.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "11.2.8",
+    "@types/connect-pg-simple": "7.0.3",
+    "@types/express": "5.0.6",
+    "@types/express-session": "1.19.0",
+    "@types/jest": "30.0.0",
+    "@types/passport-local": "1.0.38",
+    "@types/passport": "1.0.17",
+    "@types/pg": "8.23.1",
+    "@types/supertest": "7.2.1",
+    "jest": "30.5.2",
+    "supertest": "7.3.1",
+    "ts-jest": "29.4.15",
+    "ts-node": "10.9.2"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "ts-node": { "files": true },
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "rootDir": "../..",
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "../../packages/contracts/src/**/*.ts"]
+}

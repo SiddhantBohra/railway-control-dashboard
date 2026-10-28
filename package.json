@@ -1,0 +1,35 @@
+{
+  "name": "railway-control",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "scripts": {
+    "setup:local": "node scripts/setup-local.mjs",
+    "dev": "corepack pnpm --filter @control/contracts build && corepack pnpm --parallel --filter @control/api --filter @control/web dev",
+    "build": "corepack pnpm --filter @control/contracts build && corepack pnpm --filter @control/api build && corepack pnpm --filter @control/web build",
+    "typecheck": "corepack pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "corepack pnpm -r --if-present test",
+    "test:integration": "corepack pnpm --filter @control/api test:integration",
+    "test:e2e": "playwright test",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:migrate": "corepack pnpm --filter @control/api db:migrate",
+    "db:seed": "corepack pnpm --filter @control/api db:seed",
+    "check": "corepack pnpm lint && corepack pnpm format:check && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.3",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  }
+}

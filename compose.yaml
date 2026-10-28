@@ -1,0 +1,19 @@
+name: railway-control
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: control
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: control
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - control-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U control -d control']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  control-postgres:
