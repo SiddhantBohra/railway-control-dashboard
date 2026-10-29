@@ -6,6 +6,15 @@ export const localPasswordHash =
 export function configureTestEnvironment(
   databaseUrl = 'postgres://control:local-development-only@localhost:55432/control_test',
 ) {
+  for (const key of [
+    'RAILWAY_TOKEN',
+    'RAILWAY_TARGET_PROJECT_ID',
+    'RAILWAY_TARGET_ENVIRONMENT_ID',
+    'RAILWAY_TARGET_SERVICE_ID',
+    'RAILWAY_IMAGE',
+  ]) {
+    delete process.env[key];
+  }
   Object.assign(process.env, {
     NODE_ENV: 'test',
     DATABASE_URL: databaseUrl,

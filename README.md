@@ -27,6 +27,8 @@ corepack pnpm dev
 
 The database listens only on `127.0.0.1:55432`. Migrations are explicit and repeatable; Sequelize schema synchronization is disabled. The seed command registers the server-selected mapping without overwriting existing mappings.
 
+Live mode uses `RAILWAY_TARGET_PROJECT_ID`, `RAILWAY_TARGET_ENVIRONMENT_ID` and `RAILWAY_TARGET_SERVICE_ID` for the managed workload, alongside `RAILWAY_TOKEN` and `RAILWAY_IMAGE`. Railway's injected `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID` and `RAILWAY_SERVICE_ID` describe the API's hosting environment and are not used as target configuration. See `apps/api/.env.example` for the supported settings.
+
 ### Verify
 
 Create the isolated integration-test database once:

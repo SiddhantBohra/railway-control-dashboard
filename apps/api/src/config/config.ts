@@ -26,9 +26,11 @@ const schema = z
     RESOURCE_ID: z.uuid(),
     RESOURCE_NAME: z.string().min(1).max(100).default('Signal demo'),
     RAILWAY_TOKEN: z.string().min(1).optional(),
-    RAILWAY_PROJECT_ID: z.uuid().optional(),
-    RAILWAY_ENVIRONMENT_ID: z.uuid().optional(),
-    RAILWAY_SERVICE_ID: z.uuid().optional(),
+    // Railway injects RAILWAY_*_ID for this API's own hosting scope.
+    // The controlled workload must be configured independently, without fallback.
+    RAILWAY_TARGET_PROJECT_ID: z.uuid().optional(),
+    RAILWAY_TARGET_ENVIRONMENT_ID: z.uuid().optional(),
+    RAILWAY_TARGET_SERVICE_ID: z.uuid().optional(),
     RAILWAY_IMAGE: z
       .string()
       .max(512)
@@ -53,9 +55,9 @@ const schema = z
     if (config.PROVIDER_MODE === 'railway') {
       for (const key of [
         'RAILWAY_TOKEN',
-        'RAILWAY_PROJECT_ID',
-        'RAILWAY_ENVIRONMENT_ID',
-        'RAILWAY_SERVICE_ID',
+        'RAILWAY_TARGET_PROJECT_ID',
+        'RAILWAY_TARGET_ENVIRONMENT_ID',
+        'RAILWAY_TARGET_SERVICE_ID',
         'RAILWAY_IMAGE',
       ] as const) {
         if (!config[key])
@@ -81,9 +83,9 @@ export class Config {
 
   get scope() {
     return {
-      projectId: this.values.RAILWAY_PROJECT_ID ?? 'mock-project',
-      environmentId: this.values.RAILWAY_ENVIRONMENT_ID ?? 'mock-environment',
-      serviceId: this.values.RAILWAY_SERVICE_ID ?? 'mock-service',
+      projectId: this.values.RAILWAY_TARGET_PROJECT_ID ?? 'mock-project',
+      environmentId: this.values.RAILWAY_TARGET_ENVIRONMENT_ID ?? 'mock-environment',
+      serviceId: this.values.RAILWAY_TARGET_SERVICE_ID ?? 'mock-service',
       image: this.values.RAILWAY_IMAGE ?? 'mock:signal',
     };
   }
