@@ -2,7 +2,10 @@
 // Response validation is always enabled. Static schema review is not a live mutation test.
 const deploymentFields = `id status createdAt updatedAt projectId environmentId serviceId instances { id status }`;
 
-export const SNAPSHOT = `query ControlSnapshot($serviceId: String!, $environmentId: String!, $input: DeploymentListInput!) {
+export const SNAPSHOT = `query ControlSnapshot($projectId: String!, $serviceId: String!, $environmentId: String!, $input: DeploymentListInput!) {
+  environment(id: $environmentId, projectId: $projectId) {
+    id config(decryptVariables: false)
+  }
   serviceInstance(serviceId: $serviceId, environmentId: $environmentId) {
     serviceId environmentId numReplicas sleepApplication source { image repo }
     activeDeployments { ${deploymentFields} }

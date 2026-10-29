@@ -1,4 +1,7 @@
 import type { ObservedState, OperationState } from '@control/contracts';
+import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
+import { Badge } from './badge';
+import { Spinner } from './spinner';
 
 const labels: Record<ObservedState | OperationState, string> = {
   running: 'Running',
@@ -27,15 +30,31 @@ export function Status({
     ? 'neutral'
     : ['running', 'succeeded'].includes(state)
       ? 'green'
-      : ['failed', 'review_required'].includes(state)
-        ? 'amber'
-        : ['queued', 'dispatching', 'reconciling', 'transitioning'].includes(state)
-          ? 'blue'
-          : 'neutral';
+      : state === 'failed'
+        ? 'red'
+        : state === 'review_required'
+          ? 'amber'
+          : ['queued', 'dispatching', 'reconciling', 'transitioning'].includes(state)
+            ? 'blue'
+            : 'neutral';
   return (
-    <span className={`status status-${tone}`}>
-      <span aria-hidden="true" className="status-dot" />
-      {stale ? `Last seen ${labels[state].toLowerCase()}` : labels[state]}
-    </span>
+    <Badge variant="outline" className={`status status-${tone}`}>
+      {!stale && ['queued', 'dispatching', 'reconciling', 'transitioning'].includes(state) ? (
+        <Spinner />
+      ) : !stale && state === 'succeeded' ? (
+        <CircleCheck aria-hidden="true" />
+      ) : !stale && state === 'failed' ? (
+        <CircleX aria-hidden="true" />
+      ) : !stale && state === 'review_required' ? (
+        <TriangleAlert aria-hidden="true" />
+      ) : (
+        <span aria-hidden="true" className="status-dot" />
+      )}
+      {stale
+        ? state === 'unknown'
+          ? 'Awaiting observation'
+          : `Last seen ${labels[state].toLowerCase()}`
+        : labels[state]}
+    </Badge>
   );
 }

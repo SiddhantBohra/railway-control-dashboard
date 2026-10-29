@@ -1,6 +1,10 @@
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, History, ListFilter } from 'lucide-react';
 import type { Operation } from '@control/contracts';
 import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 
 export function ActivityHistory({
   operations,
@@ -14,19 +18,25 @@ export function ActivityHistory({
   onLoadMore: () => void;
 }) {
   return (
-    <section className="panel history-panel" aria-labelledby="history-heading">
+    <Card role="region" className="history-panel" aria-labelledby="history-heading">
       <div className="section-heading">
-        <div>
-          <span className="eyebrow">THE PAPER TRAIL</span>
+        <div className="history-title">
+          <History aria-hidden="true" />
           <h2 id="history-heading">Activity</h2>
+          <Badge variant="secondary">{operations.length} shown</Badge>
         </div>
-        <span className="subtle">Newest first</span>
+        <span className="history-sort">
+          <ListFilter aria-hidden="true" /> Newest first
+        </span>
       </div>
       {operations.length === 0 ? (
         <div className="empty-history">
-          <span aria-hidden="true">↳</span>
-          <p>No requests yet.</p>
-          <span className="subtle">Your first start or stop will appear here.</span>
+          <div className="empty-history-icon">
+            <History aria-hidden="true" />
+          </div>
+          <h3>No requests yet.</h3>
+          <p>Your first start or stop will appear here.</p>
+          <span className="subtle">A durable history of every action, from request to result.</span>
         </div>
       ) : (
         <div className="table-scroll">
@@ -35,21 +45,36 @@ export function ActivityHistory({
               <tr>
                 <th scope="col">Action</th>
                 <th scope="col">Status</th>
+                <th scope="col">Duration</th>
                 <th scope="col">Requested</th>
-                <th scope="col">Reference</th>
+                <th scope="col">Request ID</th>
               </tr>
             </thead>
             <tbody>
               {operations.map((operation) => (
                 <tr key={operation.id}>
                   <td>
-                    <span className="action-symbol" aria-hidden="true">
-                      {operation.action === 'start' ? '↗' : '↙'}
-                    </span>
-                    {operation.action === 'start' ? 'Start workload' : 'Stop deployment'}
+                    <div className="history-action">
+                      <span
+                        className={`action-symbol action-${operation.action}`}
+                        aria-hidden="true"
+                      >
+                        {operation.action === 'start' ? <ArrowUpRight /> : <ArrowDownLeft />}
+                      </span>
+                      <span>
+                        {operation.action === 'start' ? 'Start workload' : 'Stop deployment'}
+                      </span>
+                    </div>
                   </td>
                   <td>
                     <Status state={operation.state} />
+                  </td>
+                  <td className="history-duration">
+                    {operation.completedAt
+                      ? `${Math.max(0, Math.floor((Date.parse(operation.completedAt) - Date.parse(operation.acceptedAt)) / 1000))}s`
+                      : operation.state === 'review_required'
+                        ? 'Awaiting review'
+                        : 'In progress'}
                   </td>
                   <td>
                     <time dateTime={operation.acceptedAt}>
@@ -63,7 +88,9 @@ export function ActivityHistory({
                     </time>
                   </td>
                   <td>
-                    <code title={operation.id}>{operation.id.slice(0, 8)}</code>
+                    <code className="reference-chip" title={operation.id}>
+                      {operation.id.slice(0, 8)}
+                    </code>
                   </td>
                 </tr>
               ))}
@@ -73,11 +100,18 @@ export function ActivityHistory({
       )}
       {hasMore && (
         <div className="history-footer">
-          <Button variant="quiet" disabled={loadingMore} onClick={onLoadMore}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={loadingMore}
+            aria-busy={loadingMore}
+            onClick={onLoadMore}
+          >
+            {loadingMore ? <Spinner /> : <ChevronDown aria-hidden="true" />}
             {loadingMore ? 'Loading…' : 'Load earlier requests'}
           </Button>
         </div>
       )}
-    </section>
+    </Card>
   );
 }

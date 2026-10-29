@@ -1,7 +1,5 @@
+import { DashboardSkeleton } from '@/components/loading-states';
+
 export default function Loading() {
-  return (
-    <div className="panel empty-state" role="status">
-      Opening the control room…
-    </div>
-  );
+  return <DashboardSkeleton label="Opening your control room…" />;
 }

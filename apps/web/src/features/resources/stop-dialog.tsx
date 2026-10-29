@@ -1,37 +1,41 @@
 'use client';
 
-import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { Square, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
 export function StopDialog({ disabled, onConfirm }: { disabled: boolean; onConfirm: () => void }) {
   return (
-    <AlertDialog.Root>
-      <AlertDialog.Trigger asChild>
-        <Button variant="secondary" disabled={disabled}>
-          <span aria-hidden="true">■</span> Stop workload
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" disabled={disabled}>
+          <Square aria-hidden="true" className="size-3 fill-current" /> Stop workload
         </Button>
-      </AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Overlay className="dialog-overlay" />
-        <AlertDialog.Content className="dialog-content">
-          <span className="eyebrow">DEPLOYMENT REMOVAL</span>
-          <AlertDialog.Title>Stop and remove deployment?</AlertDialog.Title>
-          <AlertDialog.Description>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <div className="dialog-symbol">
+          <Trash2 aria-hidden="true" />
+        </div>
+        <div className="space-y-2">
+          <AlertDialogTitle>Stop and remove deployment?</AlertDialogTitle>
+          <AlertDialogDescription>
             This removes the current deployment and discards its ephemeral container data. The
             service and its configuration remain. Starting again creates a new deployment.
-          </AlertDialog.Description>
-          <div className="dialog-actions">
-            <AlertDialog.Cancel asChild>
-              <Button variant="secondary">Keep running</Button>
-            </AlertDialog.Cancel>
-            <AlertDialog.Action asChild>
-              <Button variant="danger" onClick={onConfirm}>
-                Stop and remove deployment
-              </Button>
-            </AlertDialog.Action>
-          </div>
-        </AlertDialog.Content>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+          </AlertDialogDescription>
+        </div>
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+          <AlertDialogCancel>Keep running</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Stop and remove deployment</AlertDialogAction>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

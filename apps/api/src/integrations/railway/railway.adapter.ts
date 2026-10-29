@@ -17,10 +17,14 @@ const deploymentSchema = z.object({
   instances: z.array(z.object({ id: z.string(), status: z.string() })).max(20),
 });
 const snapshotSchema = z.object({
+  environment: z.object({
+    id: z.string(),
+    config: z.object({ services: z.record(z.string(), z.unknown()) }),
+  }),
   serviceInstance: z.object({
     serviceId: z.string(),
     environmentId: z.string(),
-    numReplicas: z.number().nullable(),
+    numReplicas: z.number().int().nonnegative().nullable(),
     sleepApplication: z.boolean().nullable(),
     source: z.object({ image: z.string().nullable(), repo: z.string().nullable() }).nullable(),
     activeDeployments: z.array(deploymentSchema).max(20),
@@ -30,6 +34,15 @@ const snapshotSchema = z.object({
     edges: z.array(z.object({ node: deploymentSchema })).max(20),
     pageInfo: z.object({ hasNextPage: z.boolean() }),
   }),
+});
+const serviceConfigurationSchema = z.object({
+  deploy: z
+    .object({
+      multiRegionConfig: z
+        .record(z.string().min(1), z.object({ numReplicas: z.number().int().nonnegative() }))
+        .optional(),
+    })
+    .optional(),
 });
 
 @Injectable()
@@ -76,6 +89,7 @@ export class RailwayAdapter extends RailwayLifecycle {
     const data = await this.client.request(
       SNAPSHOT,
       {
+        projectId: target.projectId,
         serviceId: target.serviceId,
         environmentId: target.environmentId,
         input: {
@@ -88,12 +102,27 @@ export class RailwayAdapter extends RailwayLifecycle {
       snapshotSchema,
     );
     const instance = data.serviceInstance;
+    // New Railway services keep replica counts in regional environment configuration;
+    // the legacy instance field may be null. Missing evidence is never assumed to be 1.
+    // Parse only this service's deployment settings; do not retain or log variables.
+    const serviceConfiguration = serviceConfigurationSchema.safeParse(
+      data.environment.config.services[target.serviceId],
+    );
+    const regions = serviceConfiguration.success
+      ? serviceConfiguration.data.deploy?.multiRegionConfig
+      : undefined;
+    const replicas = regions
+      ? Object.values(regions).reduce((total, region) => total + region.numReplicas, 0)
+      : instance.numReplicas;
     if (
+      data.environment.id !== target.environmentId ||
+      !serviceConfiguration.success ||
       instance.serviceId !== target.serviceId ||
       instance.environmentId !== target.environmentId ||
       instance.source?.image !== target.image ||
       instance.source.repo !== null ||
-      instance.numReplicas !== 1 ||
+      replicas !== 1 ||
+      (instance.numReplicas !== null && instance.numReplicas !== 1) ||
       instance.sleepApplication === true
     ) {
       throw new ProviderError(

@@ -31,7 +31,8 @@ const schema = z
     RAILWAY_SERVICE_ID: z.uuid().optional(),
     RAILWAY_IMAGE: z
       .string()
-      .regex(/^[\w./:-]+@sha256:[a-f0-9]{64}$/)
+      .max(512)
+      .regex(/^[\w.-]+(?::\d+)?(?:\/[\w.-]+)*(?::[\w][\w.-]{0,127})?(?:@sha256:[a-f0-9]{64})?$/)
       .optional(),
     PROXY_TRUST_HOPS: z
       .string()

@@ -4,7 +4,7 @@ A deliberately small control room for one Railway workload. Next.js presents int
 
 **Start creates a deployment. Stop removes that deployment, discarding ephemeral container data and preserving the service.** It is not a pause/resume API. A `202` response means the request is saved, not that Railway completed it.
 
-The default demo uses a clearly labelled **local simulator**. PostgreSQL, HTTP, sessions, validation, the worker and browser flows are real. No Railway token is needed. Live Railway lifecycle verification and remote deployment have not been performed.
+The default demo uses a clearly labelled **local simulator**. PostgreSQL, HTTP, sessions, validation, the worker and browser flows are real. No Railway token is needed. Separately authorized live Stop and Start operations succeeded on 2026-10-29; the dashboard itself is still local.
 
 ## Run locally
 
@@ -39,9 +39,9 @@ corepack pnpm test:integration
 corepack pnpm test:e2e
 ```
 
-If `control_test` already exists, skip `createdb`. Integration tests recreate its public schema and reject remote hosts or names without the `_test` suffix. They never reset the application database. E2E uses the local application database and leaves the simulator stopped, with visible history. Use a fresh mock-mode API process when repeating E2E rapidly: deliberate write/login limits can otherwise reject repeated runs.
+If `control_test` already exists, skip `createdb`. Integration tests recreate its public schema and reject remote hosts or names without the `_test` suffix. They never reset the application database. E2E requires a mock-mode API, uses the local application database and leaves the simulator stopped, with visible history. Check the **LOCAL SIMULATOR** banner before running it; the Playwright configuration can reuse an existing development server. Use a fresh mock-mode API process when repeating E2E rapidly: deliberate write/login limits can otherwise reject repeated runs.
 
-`check` runs lint, formatting, strict typechecking, unit/component tests and production builds. Integration and browser checks are separate because they need PostgreSQL and Chromium. See [verification](docs/verification.md) for results and boundaries.
+`check` runs lint, formatting, strict typechecking, unit/component tests and production builds. Integration and browser checks are separate because they need PostgreSQL and Chromium.
 
 ### Stop local services
 
@@ -68,9 +68,15 @@ Nest controllers → application services → Sequelize repositories → Postgre
 - A dispatch marker is saved before a provider mutation. Recovery reconciles by exact deployment ID and never blindly resends an uncertain mutation.
 - Generation, revision and observation sequence checks protect persisted state from stale work.
 - Unknown and stale observations remain visible; provider errors never become a fabricated “Stopped.”
-- One principal, one mapped image-pinned service, one replica, sleeping disabled. The dashboard and its database are independent of the managed workload.
+- One principal, one mapped service with an exact image-reference allowlist, one replica, sleeping disabled. Digest pinning is supported; default/tagged images can resolve to different contents on later starts. The dashboard and its database are independent of the managed workload.
 
-This is a bounded interview/demo system, **not an exactly-once or highly available control plane**. An uncertain start response may require human review. The in-memory simulator loses deployment state when the API restarts; durable operations and history remain in PostgreSQL.
+The system supports one API replica and does not guarantee exactly-once execution or high availability. An uncertain start response may require human review. The in-memory simulator loses deployment state when the API restarts; durable operations and history remain in PostgreSQL.
+
+### Interface
+
+The frontend uses locally owned shadcn/ui-based Radix components, Tailwind theme tokens and Lucide icons. `apps/web/components.json` configures the New York style; component source and MIT attribution live in `apps/web/src/components/ui`.
+
+The timeline shows backend workflow stages, not an estimated Railway deployment percentage. Failed and uncertain requests remain visibly unconfirmed. Skeleton screens and inline loaders cover session, resources, history and request states; animations respect reduced-motion preferences.
 
 ## Repository map
 
@@ -88,7 +94,3 @@ This is a bounded interview/demo system, **not an exactly-once or highly availab
 
 - [Architecture, invariants and rejected alternatives](docs/architecture.md)
 - [API and authentication contract](docs/api.md)
-- [Failure recovery and operator review](docs/recovery.md)
-- [Deployment, environment variables and live verification](docs/deployment.md)
-- [Five-minute demo and reviewer questions](docs/interview.md)
-- [Verification report and limitations](docs/verification.md)

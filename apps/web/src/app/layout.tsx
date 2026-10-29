@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { Radio, Layers3 } from 'lucide-react';
 import { QueryProvider } from '@/lib/query-provider';
 import './globals.css';
 
@@ -20,23 +21,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="site-header">
           <Link href="/" className="brand" aria-label="Signal home">
             <span className="brand-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
+              <Radio />
             </span>
-            <strong>signal</strong>
+            <strong>Signal</strong>
             <span className="brand-divider" />
             <span className="brand-subtitle">Railway control</span>
           </Link>
           <span className="header-note">
-            <span aria-hidden="true">●</span> DELIBERATELY SMALL
+            <Layers3 aria-hidden="true" /> WORKLOAD CONSOLE
           </span>
         </header>
         <main id="main" className="site-main">
           <QueryProvider>{children}</QueryProvider>
         </main>
         <footer className="site-footer">
-          <span>CONTROL, WITH CONTEXT.</span>
+          <span>
+            <Radio aria-hidden="true" /> Signal <span className="footer-separator">/</span> Control,
+            with context.
+          </span>
           <span>Built for the space between a request and its result.</span>
         </footer>
       </body>

@@ -29,6 +29,11 @@ test('accepted work is presented as confirmation in progress, not provider succe
   expect(screen.getByText('Confirming state')).toBeVisible();
   expect(screen.queryByText('Completed')).not.toBeInTheDocument();
   expect(screen.getByText(/request is saved/)).toBeVisible();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+  expect(screen.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuetext',
+    expect.stringContaining('not yet confirmed'),
+  );
 });
 test('uncertain outcomes explain the limitation and offer only a read-only recheck', () => {
   show({
@@ -39,4 +44,33 @@ test('uncertain outcomes explain the limitation and offer only a read-only reche
   expect(screen.getByText('Needs review')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Recheck provider state' })).toBeVisible();
   expect(screen.getByText(/mutation will not be repeated/)).toBeVisible();
+  expect(screen.getByRole('progressbar')).toHaveAttribute(
+    'aria-valuetext',
+    'Needs review; provider outcome unconfirmed',
+  );
+});
+
+test('a failed request does not paint all stages as successfully completed', () => {
+  const { container } = show({
+    ...operation,
+    state: 'failed',
+    completedAt: '2026-10-28T10:00:12.000Z',
+    failure: { code: 'DEPLOYMENT_FAILED', message: 'Railway could not start the deployment.' },
+  });
+  expect(screen.getByText('Request failed')).toBeVisible();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25');
+  expect(container.querySelectorAll('[data-step-state="done"]')).toHaveLength(1);
+  expect(screen.queryByText('Completed')).not.toBeInTheDocument();
+});
+
+test('an already-satisfied result shows a skipped action and confirmed outcome', () => {
+  show({
+    ...operation,
+    state: 'succeeded',
+    completedAt: '2026-10-28T10:00:01.000Z',
+    outcome: 'already_satisfied',
+  });
+  expect(screen.getByText('Action not needed')).toBeVisible();
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+  expect(screen.getByText(/No mutation was sent/)).toBeVisible();
 });
