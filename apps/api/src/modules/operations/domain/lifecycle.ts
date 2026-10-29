@@ -27,13 +27,22 @@ export function isRunning(deployment: Deployment): boolean {
     deployment.instances.some((instance) => instance.status === 'RUNNING')
   );
 }
+export function observationDeployment(snapshot: RailwaySnapshot): Deployment | undefined {
+  const live = snapshot.deployments.filter((deployment) => !isInactive(deployment));
+  // The primary reference describes the workload, not a newer failed replacement.
+  if (live.length === 1) return live[0];
+  return latestDeployment(snapshot);
+}
+export function latestDeployment(snapshot: RailwaySnapshot): Deployment | undefined {
+  return [...snapshot.deployments].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  )[0];
+}
 export function observedState(snapshot: RailwaySnapshot): ObservedState {
   if (!snapshot.complete) return 'unknown';
   const live = snapshot.deployments.filter((deployment) => !isInactive(deployment));
   if (live.length === 0) {
-    const latest = [...snapshot.deployments].sort(
-      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-    )[0];
+    const latest = latestDeployment(snapshot);
     return latest && ['FAILED', 'CRASHED'].includes(latest.status) ? 'failed' : 'stopped';
   }
   if (live.length !== 1) return 'unknown';

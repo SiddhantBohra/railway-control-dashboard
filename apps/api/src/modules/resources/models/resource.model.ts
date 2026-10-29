@@ -1,5 +1,5 @@
 import { Column, DataType, Model, Table } from 'sequelize-typescript';
-import type { Failure, ObservedState } from '@control/contracts';
+import type { DeploymentSummary, Failure, ObservedState } from '@control/contracts';
 
 export interface ResourceRecord {
   id: string;
@@ -17,6 +17,7 @@ export interface ResourceRecord {
   observedState: ObservedState;
   providerStatus: string | null;
   deploymentId: string | null;
+  latestDeployment: DeploymentSummary | null;
   observedAt: Date | null;
   providerUpdatedAt: Date | null;
   observationError: Failure | null;
@@ -39,6 +40,7 @@ export class ResourceModel extends Model<ResourceRecord, ResourceRecord> {
   @Column(DataType.STRING) declare observedState: ObservedState;
   @Column(DataType.STRING) declare providerStatus: string | null;
   @Column(DataType.STRING) declare deploymentId: string | null;
+  @Column(DataType.JSONB) declare latestDeployment: DeploymentSummary | null;
   @Column(DataType.DATE) declare observedAt: Date | null;
   @Column(DataType.DATE) declare providerUpdatedAt: Date | null;
   @Column(DataType.JSONB) declare observationError: Failure | null;

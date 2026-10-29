@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+injectWorkspacePackages: true
 
 onlyBuiltDependencies:
   - '@nestjs/core'
@@ -9,7 +10,13 @@ onlyBuiltDependencies:
   - sharp
   - unrs-resolver
 
+overrides:
+  '@nestjs/platform-express>multer': 2.5.0
+  '@nestjs/swagger>js-yaml': 5.5.0
+  'sequelize>uuid': 11.1.1
+patchedDependencies:
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
+
 strictPeerDependencies: true
-injectWorkspacePackages: true
 syncInjectedDepsAfterScripts:
   - build

@@ -51,7 +51,9 @@ stateDiagram-v2
 
 `SUCCESS` alone does not prove a running workload: a `RUNNING` instance must be present. Absence from a complete snapshot can mean stopped; an incomplete page cannot. Latest `FAILED`/`CRASHED` evidence is shown as failed. New or unrecognized provider statuses stay unknown. “Running” reports provider state, not an application health probe.
 
-Observations use generation and sequence tickets. An older request cannot overwrite a newer request or intent; same-deployment provider timestamps cannot regress. A complete snapshot with no deployment can clear an old ID. Failed checks preserve the last good observation and attach a safe error. Evidence is stale after three minutes or immediately after a failed check.
+Observations use generation and sequence tickets. An older request cannot overwrite a newer request or intent; same-deployment provider timestamps cannot regress. Rejected observations cannot authorize dispatch or settle an operation; they defer with `STALE_OBSERVATION`. Exact-deployment responses are checked against the persisted and snapshot timestamps before deciding an outcome. A complete snapshot with no deployment can clear an old ID. Failed checks preserve the last good observation and attach a safe error. Evidence is stale after three minutes or immediately after a failed check. The browser independently ages cached evidence and disables controls on refresh failure, including an already-open Stop confirmation.
+
+Primary deployment metadata follows the single active deployment. A separate `latestDeployment` summary preserves a newer failed attempt without labelling that failed deployment as running. Migration `003-latest-deployment` adds this nullable evidence column without replacing existing resource mappings.
 
 ## Persistence
 
@@ -64,7 +66,7 @@ Foreign keys prevent orphaned operation history. A partial unique index over unr
 
 ## Worker and budgets
 
-One Nest process runs a tracked, single-concurrency loop at one-second scheduling intervals. A dedicated PostgreSQL connection owns an advisory leadership lock; no untracked request-scoped background promise is used. Shutdown awaits in-flight work. Lock-connection loss stops dispatch and fails readiness until restart.
+One Nest process runs a tracked, single-concurrency loop at one-second scheduling intervals. A dedicated PostgreSQL connection owns an advisory leadership lock; no untracked request-scoped background promise is used. Shutdown awaits in-flight work. Lock-connection loss stops dispatch and fails readiness. After the in-flight tick settles, the worker reconnects with capped exponential backoff (one to thirty seconds), bounded connection/lock-query timeouts, and fresh lock acquisition. Ownership callbacks are bound to their original connection; reconnecting cannot revive permission for old work. Persisted dispatch markers still enter read-only reconciliation, never mutation replay. Recovery does not depend on Railway's deployment-only healthcheck.
 
 Provider reads back off from 5 to 30 seconds; idle observation defaults to 120 seconds. A conservative local budget caps calls at 80/hour and honors provider `Retry-After` and remaining/reset headers. UI polling reads PostgreSQL and does not fan out to Railway. The default confirmation deadline is ten minutes. A budget delay can exceed that deadline and require review; it is never converted into an optimistic success.
 
@@ -79,6 +81,10 @@ The advisory lock is not provider fencing. A process/network partition can occur
 - JSON bodies are limited to 16 KiB. Per-IP limits: 5 login attempts/minute, 10 writes/10 minutes, 180 reads/minute. The bounded limiter is process-local.
 - Provider responses are Zod-validated. Raw upstream messages, headers, session secrets, passwords and stacks are not returned. Logs contain request/operation identifiers and safe classifications.
 - Railway uses an environment-scoped project token, server-side only. Account-wide tokens are unnecessary for this design.
+
+### Dependency maintenance
+
+`pnpm-workspace.yaml` pins scoped fixes for Multer, js-yaml and Sequelize's UUID dependency. Deepmerge has no released fix for GHSA-gcqx-w48m-w2h4; `patches/deepmerge@4.3.1.patch` replaces assignment with own-data-property definition on every merge destination write, covering source and target prototype poisoning. pnpm applies the patch during frozen installs and both Docker builds. `scripts/dependencies.test.mjs` exercises the actual transitive dependency loaded by Nest's OpenAPI adapter. Version-only audits still report this low-severity advisory; it is not suppressed. Replace the patch with a fixed upstream release when available.
 
 ## Rejected alternatives
 

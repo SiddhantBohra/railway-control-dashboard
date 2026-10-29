@@ -6,13 +6,14 @@ import type { RailwayTarget } from '../src/integrations/railway/railway.boundary
 import { OperationsService } from '../src/modules/operations/services/operations.service';
 import { OperationsRepository } from '../src/modules/operations/repositories/operations.repository';
 import { OperationProcessor } from '../src/modules/operations/services/operation.processor';
+import { OperationWorker } from '../src/modules/operations/services/operation.worker';
 import { ResourcesService } from '../src/modules/resources/services/resources.service';
 import { ResourcesRepository } from '../src/modules/resources/repositories/resources.repository';
 import type { OperationModel } from '../src/modules/operations/models/operation.model';
 import { Config } from '../src/config/config';
 import { migrations } from '../src/database/migrations';
 import { cleanDatabase, harness, resetData } from './harness';
-import { resourceId } from './fixtures';
+import { deployment, resourceId } from './fixtures';
 
 class FaultProvider extends MockRailwayAdapter {
   startCalls = 0;
@@ -41,7 +42,11 @@ let repository: OperationsRepository;
 let processor: OperationProcessor;
 
 beforeAll(async () => {
-  expect(await cleanDatabase()).toEqual(['001-initial', '002-operation-reviews']);
+  expect(await cleanDatabase()).toEqual([
+    '001-initial',
+    '002-operation-reviews',
+    '003-latest-deployment',
+  ]);
 });
 beforeEach(async () => {
   provider = new FaultProvider();
@@ -279,4 +284,191 @@ test('history pagination is bounded and ordered without exposing provider creden
     type: QueryTypes.SELECT,
   });
   expect(rows[0]?.count).toBe('3');
+});
+
+test.each(['start', 'stop'] as const)(
+  'stale evidence cannot satisfy or dispatch %s',
+  async (action) => {
+    const resources = context.app.get(ResourcesRepository);
+    const resource = await context.app.get(ResourcesService).requireOwned(resourceId, 'demo');
+    const ticket = await resources.beginObservation(resource);
+    if (!ticket) throw new Error('Missing observation ticket');
+    await resources.observe(ticket, {
+      observedState: 'failed',
+      providerStatus: 'CRASHED',
+      deploymentId: 'deployment-1',
+      observedAt: new Date(),
+      providerUpdatedAt: new Date('2026-10-28T11:00:00Z'),
+    });
+    jest.spyOn(provider, 'snapshot').mockResolvedValueOnce({
+      deployments: [deployment()],
+      complete: true,
+      observedAt: new Date(),
+    });
+    const { operation } = await service.accept(resourceId, 'demo', action, randomUUID());
+    await processOperation(operation.id);
+    expect(await service.get(operation.id, 'demo')).toMatchObject({
+      state: 'queued',
+      dispatchAt: null,
+      failure: { code: 'STALE_OBSERVATION' },
+    });
+    expect(provider.startCalls).toBe(0);
+    expect(provider.removeCalls).toBe(0);
+    expect(await context.app.get(ResourcesService).requireOwned(resourceId, 'demo')).toMatchObject({
+      observedState: 'failed',
+      providerStatus: 'CRASHED',
+    });
+  },
+);
+
+test('reconciliation cannot succeed from a snapshot older than persisted evidence', async () => {
+  const { operation } = await service.accept(resourceId, 'demo', 'start', randomUUID());
+  await processOperation(operation.id);
+  const record = await service.get(operation.id, 'demo');
+  const id = record.resultDeploymentId;
+  if (!id) throw new Error('Missing deployment ID');
+  const resources = context.app.get(ResourcesRepository);
+  const resource = await context.app.get(ResourcesService).requireOwned(resourceId, 'demo');
+  const ticket = await resources.beginObservation(resource);
+  if (!ticket) throw new Error('Missing observation ticket');
+  await resources.observe(ticket, {
+    observedState: 'failed',
+    providerStatus: 'CRASHED',
+    deploymentId: id,
+    observedAt: new Date(),
+    providerUpdatedAt: new Date(Date.now() + 60000),
+  });
+  await processOperation(operation.id);
+  expect(await service.get(operation.id, 'demo')).toMatchObject({
+    state: 'reconciling',
+    failure: { code: 'STALE_OBSERVATION' },
+  });
+  expect(provider.startCalls).toBe(1);
+});
+
+test('an older exact-deployment response cannot overturn a newer running snapshot', async () => {
+  const { operation } = await service.accept(resourceId, 'demo', 'start', randomUUID());
+  await processOperation(operation.id);
+  const record = await service.get(operation.id, 'demo');
+  if (!record.resultDeploymentId) throw new Error('Missing deployment ID');
+  jest.spyOn(provider, 'deployment').mockResolvedValueOnce(
+    deployment({
+      id: record.resultDeploymentId,
+      status: 'FAILED',
+      instances: [],
+    }),
+  );
+  await processOperation(operation.id);
+  expect(await service.get(operation.id, 'demo')).toMatchObject({
+    state: 'reconciling',
+    failure: { code: 'STALE_OBSERVATION' },
+  });
+  await processOperation(operation.id);
+  expect((await service.get(operation.id, 'demo')).state).toBe('succeeded');
+  expect(provider.startCalls).toBe(1);
+});
+
+test('a superseded final failure observation cannot settle an operation', async () => {
+  const { operation } = await service.accept(resourceId, 'demo', 'start', randomUUID());
+  await processOperation(operation.id);
+  const record = await service.get(operation.id, 'demo');
+  if (!record.resultDeploymentId) throw new Error('Missing deployment ID');
+  const id = record.resultDeploymentId;
+  jest.spyOn(provider, 'deployment').mockImplementationOnce(async () => {
+    const resource = await context.app.get(ResourcesService).requireOwned(resourceId, 'demo');
+    await context.app.get(ResourcesRepository).beginObservation(resource);
+    return deployment({
+      id,
+      status: 'FAILED',
+      instances: [],
+      updatedAt: new Date(Date.now() + 60000).toISOString(),
+    });
+  });
+  await processOperation(operation.id);
+  expect(await service.get(operation.id, 'demo')).toMatchObject({
+    state: 'reconciling',
+    failure: { code: 'STALE_OBSERVATION' },
+  });
+});
+
+test('running evidence identifies the active deployment and preserves a newer failed attempt separately', async () => {
+  jest.spyOn(provider, 'snapshot').mockResolvedValueOnce({
+    complete: true,
+    observedAt: new Date(),
+    deployments: [
+      deployment(),
+      deployment({
+        id: 'newer-failed',
+        status: 'FAILED',
+        instances: [],
+        createdAt: '2026-10-28T11:00:00Z',
+        updatedAt: '2026-10-28T11:05:00Z',
+      }),
+    ],
+  });
+  await processor.tick(() => true);
+  expect(await context.app.get(ResourcesService).requireOwned(resourceId, 'demo')).toMatchObject({
+    observedState: 'running',
+    providerStatus: 'SUCCESS',
+    deploymentId: 'deployment-1',
+    latestDeployment: { id: 'newer-failed', status: 'FAILED' },
+  });
+});
+
+test('worker reconnects after lock loss, waits for in-flight dispatch, and never resends it', async () => {
+  const worker = context.app.get(OperationWorker);
+  context.app.get(Config).values.WORKER_ENABLED = true;
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const start = provider.start.bind(provider);
+  jest.spyOn(provider, 'start').mockImplementationOnce(async (target) => {
+    const id = await start(target);
+    await held;
+    return id;
+  });
+  const waitFor = async (condition: () => Promise<boolean> | boolean) => {
+    const until = Date.now() + 15000;
+    while (!(await condition())) {
+      if (Date.now() >= until) throw new Error('Worker did not reach expected state');
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+  const { operation } = await service.accept(resourceId, 'demo', 'start', randomUUID());
+  try {
+    await worker.onApplicationBootstrap();
+    await waitFor(() => provider.startCalls === 1);
+    const connections = await context.db.query<{ pid: number }>(
+      "SELECT pid FROM pg_stat_activity WHERE application_name = 'railway-control-worker' AND datname = current_database()",
+      { type: QueryTypes.SELECT },
+    );
+    expect(connections).toHaveLength(1);
+    await context.db.query('SELECT pg_terminate_backend($pid)', {
+      bind: { pid: connections[0]?.pid },
+    });
+    await waitFor(() => !worker.healthy);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(worker.healthy).toBe(false);
+    expect((await service.get(operation.id, 'demo')).state).toBe('dispatching');
+    release();
+    await waitFor(
+      async () => (await service.get(operation.id, 'demo')).state === 'review_required',
+    );
+    expect(worker.healthy).toBe(true);
+    expect(provider.startCalls).toBe(1);
+    const review = await service.get(operation.id, 'demo');
+    await service.closeReview(
+      review.id,
+      'demo',
+      review.revision,
+      'Verified the simulator deployment after a lost lock connection.',
+    );
+    const stop = await service.accept(resourceId, 'demo', 'stop', randomUUID());
+    await waitFor(async () => (await service.get(stop.operation.id, 'demo')).state === 'succeeded');
+    expect(provider.removeCalls).toBe(1);
+  } finally {
+    release();
+    await worker.onApplicationShutdown();
+  }
 });

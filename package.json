@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "corepack pnpm -r --if-present test",
+    "test": "corepack pnpm -r --if-present test && node --test scripts/dependencies.test.mjs",
     "test:integration": "corepack pnpm --filter @control/api test:integration",
     "test:e2e": "playwright test",
     "db:up": "docker compose up -d --wait postgres",

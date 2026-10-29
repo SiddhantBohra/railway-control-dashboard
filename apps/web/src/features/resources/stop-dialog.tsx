@@ -33,7 +33,9 @@ export function StopDialog({ disabled, onConfirm }: { disabled: boolean; onConfi
         </div>
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <AlertDialogCancel>Keep running</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Stop and remove deployment</AlertDialogAction>
+          <AlertDialogAction disabled={disabled} onClick={onConfirm}>
+            Stop and remove deployment
+          </AlertDialogAction>
         </div>
       </AlertDialogContent>
     </AlertDialog>

@@ -10,7 +10,14 @@ import type { ObservationTicket } from '../../resources/repositories/resources.r
 import type { ResourceRecord } from '../../resources/models/resource.model';
 import { OperationsRepository } from '../repositories/operations.repository';
 import type { OperationRecord } from '../models/operation.model';
-import { checkDelay, isInactive, isRunning, observedState } from '../domain/lifecycle';
+import {
+  checkDelay,
+  isInactive,
+  isRunning,
+  latestDeployment,
+  observationDeployment,
+  observedState,
+} from '../domain/lifecycle';
 
 function safeFailure(error: unknown): Failure {
   return error instanceof ProviderError
@@ -58,16 +65,31 @@ export class OperationProcessor {
     ticket: ObservationTicket,
     snapshot: RailwaySnapshot,
   ): Promise<void> {
-    const current = [...snapshot.deployments].sort(
-      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-    )[0];
-    await this.resources.observe(ticket, {
+    const current = observationDeployment(snapshot);
+    const latest = latestDeployment(snapshot);
+    const accepted = await this.resources.observe(ticket, {
       observedState: observedState(snapshot),
       providerStatus: current?.status ?? null,
       deploymentId: current?.id ?? null,
       observedAt: snapshot.observedAt,
       providerUpdatedAt: current ? new Date(current.updatedAt) : null,
+      latestDeployment: latest
+        ? {
+            id: latest.id,
+            status: latest.status,
+            createdAt: latest.createdAt,
+            updatedAt: latest.updatedAt,
+          }
+        : null,
     });
+    if (!accepted) throw this.staleObservation();
+  }
+
+  private staleObservation(): ProviderError {
+    return new ProviderError(
+      'STALE_OBSERVATION',
+      'Provider evidence was superseded or conflicted with a newer observation. Checking again before deciding the outcome.',
+    );
   }
 
   async process(operation: OperationRecord, ownsLock: () => boolean): Promise<void> {
@@ -220,6 +242,18 @@ export class OperationProcessor {
       return;
     }
     const deployment = await this.railway.deployment(resource, id);
+    const candidate = snapshot.deployments.find((item) => item.id === id);
+    const updatedAt = Date.parse(deployment.updatedAt);
+    if (
+      (resource.deploymentId === id &&
+        resource.providerUpdatedAt &&
+        updatedAt < resource.providerUpdatedAt.getTime()) ||
+      (candidate &&
+        (updatedAt < Date.parse(candidate.updatedAt) ||
+          (updatedAt === Date.parse(candidate.updatedAt) &&
+            candidate.status !== deployment.status)))
+    )
+      throw this.staleObservation();
     const others = snapshot.deployments.filter(
       (candidate) => candidate.id !== id && !isInactive(candidate),
     );
@@ -247,13 +281,14 @@ export class OperationProcessor {
       return;
     }
     if (operation.action === 'start' && isInactive(deployment)) {
-      await this.resources.observe(ticket, {
+      const accepted = await this.resources.observe(ticket, {
         observedState: 'failed',
         providerStatus: deployment.status,
         deploymentId: id,
         providerUpdatedAt: new Date(deployment.updatedAt),
         observedAt: new Date(),
       });
+      if (!accepted) throw this.staleObservation();
       await this.finish(operation, 'failed', {
         code: 'DEPLOYMENT_FAILED',
         message:

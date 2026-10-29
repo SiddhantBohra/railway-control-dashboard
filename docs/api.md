@@ -48,7 +48,7 @@ Commands contain no provider target or credential fields. The client supplies on
 
 The complete executable schemas are in `packages/contracts/src/index.ts` and are used by both Nest serialization and browser response validation.
 
-**Resource:** `id`, `name`, `mode`, `intendedState`, `observedState`, `providerStatus`, `deploymentId`, `observedAt`, `stale`, `observationError`, `generation`, `revision`, `stopBehavior`.
+**Resource:** `id`, `name`, `mode`, `intendedState`, `observedState`, `providerStatus`, `deploymentId`, `latestDeployment`, `observedAt`, `stale`, `observationError`, `generation`, `revision`, `stopBehavior`. The primary deployment reference/status identify the single active deployment when present. `latestDeployment` is a separate nullable `{ id, status, createdAt, updatedAt }` summary, so a newer failed replacement does not masquerade as the running deployment.
 
 **Operation:** `id`, `resourceId`, `action`, `state`, `acceptedAt`, `updatedAt`, `completedAt`, `deploymentId`, `failure`, `outcome`, `revision`. Operation state is independent of resource state. `review_required` has no completion timestamp. `already_satisfied` means no mutation was necessary.
 
@@ -80,4 +80,4 @@ Provider failure is normally recorded on an already accepted operation rather th
 
 ## Polling
 
-The UI polls operations every two seconds while active, history every fifteen seconds and resource observations every thirty seconds. Terminal and review-required operation polling stops; history and explicit Refresh can still discover changes. A stale API/failed request does not erase cached evidence. Mutations have no automatic transport retry; the recovery button repeats the same local key.
+The UI polls operations every two seconds while active, history every fifteen seconds and resource observations every thirty seconds. Terminal and review-required operation polling stops; history and explicit Refresh can still discover changes. All HTTP calls retain a twenty-second timeout alongside query cancellation. A failed resource refresh marks retained evidence as last-known and disables new commands. The browser also ages observations at three minutes even when refreshes stall. Mutations have no automatic transport retry; the recovery button repeats the same local key.

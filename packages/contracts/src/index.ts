@@ -21,6 +21,13 @@ export const FailureSchema = z.strictObject({
   code: z.string(),
   message: z.string(),
 });
+export const OBSERVATION_FRESHNESS_MS = 180000;
+export const DeploymentSummarySchema = z.strictObject({
+  id: z.string(),
+  status: z.string(),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
 export const ResourceSchema = z.strictObject({
   id: z.uuid(),
   name: z.string(),
@@ -29,6 +36,7 @@ export const ResourceSchema = z.strictObject({
   observedState: ObservedStateSchema,
   providerStatus: z.string().nullable(),
   deploymentId: z.string().nullable(),
+  latestDeployment: DeploymentSummarySchema.nullable().default(null),
   observedAt: z.iso.datetime().nullable(),
   stale: z.boolean(),
   observationError: FailureSchema.nullable(),
@@ -98,6 +106,7 @@ export type Action = z.infer<typeof ActionSchema>;
 export type OperationState = z.infer<typeof OperationStateSchema>;
 export type ObservedState = z.infer<typeof ObservedStateSchema>;
 export type Resource = z.infer<typeof ResourceSchema>;
+export type DeploymentSummary = z.infer<typeof DeploymentSummarySchema>;
 export type Operation = z.infer<typeof OperationSchema>;
 export type Failure = z.infer<typeof FailureSchema>;
 export type ApiError = z.infer<typeof ErrorSchema>;

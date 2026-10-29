@@ -1,4 +1,5 @@
 import type { Resource } from '@control/contracts';
+import { OBSERVATION_FRESHNESS_MS } from '@control/contracts';
 import type { ResourceRecord } from '../models/resource.model';
 
 export function toResource(record: ResourceRecord, now = Date.now()): Resource {
@@ -10,11 +11,12 @@ export function toResource(record: ResourceRecord, now = Date.now()): Resource {
     observedState: record.observedState,
     providerStatus: record.providerStatus,
     deploymentId: record.deploymentId,
+    latestDeployment: record.latestDeployment,
     observedAt: record.observedAt?.toISOString() ?? null,
     stale:
       record.observationError !== null ||
       record.observedAt === null ||
-      now - record.observedAt.getTime() > 180000,
+      now - record.observedAt.getTime() >= OBSERVATION_FRESHNESS_MS,
     observationError: record.observationError,
     generation: record.generation,
     revision: record.revision,

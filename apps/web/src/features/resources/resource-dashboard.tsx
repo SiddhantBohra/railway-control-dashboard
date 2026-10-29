@@ -34,6 +34,7 @@ import { OperationPlaceholder, OperationProgress } from '@/features/operations/o
 import { pending, useCommand, useHistory, useOperation, useResources } from './resource-queries';
 import { clearPending, rememberRequest, usePendingRequest } from './pending-request';
 import { StopDialog } from './stop-dialog';
+import { useObservationStale } from './resource-freshness';
 
 function subscribeConnectivity(listener: () => void) {
   window.addEventListener('online', listener);
@@ -44,7 +45,16 @@ function subscribeConnectivity(listener: () => void) {
   };
 }
 
-function ResourceControl({ resource, session }: { resource: Resource; session: Session }) {
+function ResourceControl({
+  resource,
+  session,
+  refreshFailed,
+}: {
+  resource: Resource;
+  session: Session;
+  refreshFailed: boolean;
+}) {
+  const stale = useObservationStale(resource, refreshFailed);
   const client = useQueryClient();
   const history = useHistory(resource.id);
   const latest = history.data?.pages[0]?.operations[0];
@@ -100,8 +110,8 @@ function ResourceControl({ resource, session }: { resource: Resource; session: S
   const canStart =
     !busy &&
     (resource.observedState === 'stopped' || resource.observedState === 'failed') &&
-    !resource.stale;
-  const canStop = !busy && resource.observedState === 'running' && !resource.stale;
+    !stale;
+  const canStop = !busy && resource.observedState === 'running' && !stale;
 
   return (
     <>
@@ -117,7 +127,7 @@ function ResourceControl({ resource, session }: { resource: Resource; session: S
             <span className="section-kicker">
               <Box aria-hidden="true" /> MANAGED WORKLOAD
             </span>
-            <Status state={resource.observedState} stale={resource.stale} />
+            <Status state={resource.observedState} stale={stale} />
           </div>
           <div className="resource-top">
             <div className="resource-identity">
@@ -174,7 +184,7 @@ function ResourceControl({ resource, session }: { resource: Resource; session: S
               </code>
             </div>
           </div>
-          {resource.stale && (
+          {stale && (
             <Message tone="warning">
               {resource.observationError?.message ??
                 'Provider information is stale. Controls will become available after the API confirms the current state.'}
@@ -201,9 +211,16 @@ function ResourceControl({ resource, session }: { resource: Resource; session: S
               </code>
             </div>
             <span className="deployment-detail-note">
-              {resource.stale ? 'Last known evidence' : 'Provider-reported'}
+              {stale ? 'Last known evidence' : 'Provider-reported'}
             </span>
           </div>
+          {resource.latestDeployment && resource.latestDeployment.id !== resource.deploymentId && (
+            <Message tone="warning">
+              Latest deployment attempt: <code>{resource.latestDeployment.id}</code> (
+              {resource.latestDeployment.status}). The workload state above describes the active
+              deployment.
+            </Message>
+          )}
           <div className="resource-footnote">
             <ShieldCheck aria-hidden="true" />
             <p>Start creates a deployment. Stop removes it, preserving the service.</p>
@@ -375,7 +392,13 @@ export function ResourceDashboard({ session }: { session: Session }) {
           </Button>
         </Message>
       )}
-      {resource && <ResourceControl resource={resource} session={session} />}
+      {resource && (
+        <ResourceControl
+          resource={resource}
+          session={session}
+          refreshFailed={resources.isError || resources.failureCount > 0}
+        />
+      )}
       {resources.isSuccess && !resource && (
         <div className="panel empty-state">
           <h2>No managed workload</h2>

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { literal, Op } from 'sequelize';
 import type { Transaction } from 'sequelize';
-import type { Failure, ObservedState } from '@control/contracts';
+import type { DeploymentSummary, Failure, ObservedState } from '@control/contracts';
 import { ResourceModel } from '../models/resource.model';
 import type { ResourceRecord } from '../models/resource.model';
 
@@ -22,6 +22,7 @@ const attributes: (keyof ResourceRecord)[] = [
   'observedState',
   'providerStatus',
   'deploymentId',
+  'latestDeployment',
   'observedAt',
   'providerUpdatedAt',
   'observationError',
@@ -37,6 +38,7 @@ export interface ObservationUpdate {
   deploymentId: string | null;
   observedAt: Date;
   providerUpdatedAt: Date | null;
+  latestDeployment?: DeploymentSummary | null;
 }
 
 @Injectable()
