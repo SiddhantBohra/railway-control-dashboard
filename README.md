@@ -4,7 +4,9 @@ A deliberately small control room for one Railway workload. Next.js presents int
 
 **Start creates a deployment. Stop removes that deployment, discarding ephemeral container data and preserving the service.** It is not a pause/resume API. A `202` response means the request is saved, not that Railway completed it.
 
-The default demo uses a clearly labelled **local simulator**. PostgreSQL, HTTP, sessions, validation, the worker and browser flows are real. No Railway token is needed. Separately authorized live Stop and Start operations succeeded on 2026-10-29; the dashboard itself is still local.
+**Hosted dashboard:** https://web-production-03299b.up.railway.app — requires the configured production login. The web app, API and PostgreSQL run on Railway; pushes to `main` automatically deploy the web and API services.
+
+The default local demo uses a clearly labelled **local simulator**. PostgreSQL, HTTP, sessions, validation, the worker and browser flows are real. No Railway token is needed for local simulation. Separately authorized live Stop and Start operations succeeded on 2026-10-29.
 
 ## Run locally
 
